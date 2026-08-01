@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Validate sample runtime configuration
+        run: npm run check:config
+        env:
+          EVE_CLIENT_ID: ci-placeholder
+          MCP_AUTH_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          PUBLIC_BASE_URL: https://example.invalid
+          EVE_ENABLE_WRITE_ACTIONS: "false"
+
+      - name: Production build
+        run: npm run build
+        env:
+          EVE_CLIENT_ID: ci-placeholder
+          MCP_AUTH_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          PUBLIC_BASE_URL: https://example.invalid
+          EVE_ENABLE_WRITE_ACTIONS: "false"
+
+      - name: Build and verify deterministic release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run release:zip
+          unzip -t dist/eve-esi-llm-bridge-v0.1.0.zip
+          (cd dist && sha256sum -c SHA256SUMS.txt)
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          EXPECTED_TAG="v${VERSION}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${EXPECTED_TAG}"
+          fi
+          if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
+            echo "Tag ${TAG} does not match package version ${VERSION}." >&2
+            exit 1
+          fi
+
+          NOTES="dist/RELEASE-NOTES-v${VERSION}.md"
+          ZIP="dist/eve-esi-llm-bridge-v${VERSION}.zip"
+          SUMS="dist/SHA256SUMS.txt"
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release edit "${TAG}" --title "EVE ESI LLM Bridge ${TAG}" --notes-file "${NOTES}"
+            gh release upload "${TAG}" "${ZIP}" "${SUMS}" "${NOTES}" --clobber
+          else
+            gh release create "${TAG}" \
+              --target "${GITHUB_SHA}" \
+              --title "EVE ESI LLM Bridge ${TAG}" \
+              --notes-file "${NOTES}" \
+              "${ZIP}" "${SUMS}" "${NOTES}"
+          fi

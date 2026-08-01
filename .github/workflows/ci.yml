@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Validate sample runtime configuration
+        run: npm run check:config
+        env:
+          EVE_CLIENT_ID: ci-placeholder
+          MCP_AUTH_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          PUBLIC_BASE_URL: https://example.invalid
+          EVE_ENABLE_WRITE_ACTIONS: "false"
+
+      - name: Production build
+        run: npm run build
+        env:
+          EVE_CLIENT_ID: ci-placeholder
+          MCP_AUTH_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+          PUBLIC_BASE_URL: https://example.invalid
+          EVE_ENABLE_WRITE_ACTIONS: "false"
+
+      - name: Verify safe defaults and tracked-source hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -qx 'EVE_ENABLE_WRITE_ACTIONS=false' .env.example
+          if git ls-files | grep -E '(^|/)\.env($|\.)|(^|/)\.vercel/' | grep -vE '(^|/)\.env\.example$' ; then
+            echo 'Refusing tracked local environment/deployment state.' >&2
+            exit 1
+          fi
+
+      - name: Build deterministic release archive
+        run: npm run release:zip
+
+      - name: Verify release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -t dist/eve-esi-llm-bridge-v0.1.0.zip
+          (cd dist && sha256sum -c SHA256SUMS.txt)
+          if unzip -Z1 dist/eve-esi-llm-bridge-v0.1.0.zip | grep -E '(^|/)(node_modules|\.git|\.next|\.vercel|dist)/|(^|/)\.env($|\.)|(^|/)package-lock\.json$' | grep -vE '(^|/)\.env\.example$' ; then
+            echo 'Release archive contains an excluded path.' >&2
+            exit 1
+          fi
