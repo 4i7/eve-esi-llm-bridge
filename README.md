@@ -1,6 +1,12 @@
+<p align="center">
+  <img src="assets/eve-esi-llm-bridge-banner.png" alt="EVE ESI LLM Bridge" width="100%">
+</p>
+
 # EVE ESI LLM Bridge
 
-**Bring your own EVE account, your own EVE Developer Application, and your own Vercel deployment.** This repository is a self-hosted reference implementation for connecting EVE Online's official ESI API to MCP-capable LLM clients such as ChatGPT, Claude Code, Codex, and other Model Context Protocol clients.
+**BYO credentials. Self-hosted remote MCP. Separated OAuth boundaries. Built for ChatGPT, Claude, Codex, and other MCP clients.**
+
+Each operator uses their own EVE account, EVE Developer Application, and deployment. MCP client OAuth and EVE SSO remain separate trust boundaries, so EVE credentials are not shared or treated as generic MCP credentials.
 
 [日本語 README](README.ja.md)
 
