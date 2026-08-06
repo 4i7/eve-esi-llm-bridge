@@ -1,0 +1,33 @@
+name: Actions storage policy
+
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reject-actions-artifact-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Reject upload-artifact usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          matches="$(grep -RInE 'uses:[[:space:]]*actions/upload-artifact@' .github/workflows || true)"
+          if [[ -n "$matches" ]]; then
+            echo 'Actions package artifact storage is prohibited for this repository.' >&2
+            echo 'Build/test outputs must stay on the ephemeral runner; distributable files must be published directly as GitHub Release assets.' >&2
+            echo "$matches" >&2
+            exit 1
+          fi
