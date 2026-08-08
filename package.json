@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.26.0",
-    "jose": "6.2.3",
+    "jose": "6.2.8",
     "mcp-handler": "1.1.0",
     "next": "^16.0.0",
     "react": "19.2.8",
