@@ -19,7 +19,7 @@
     "release:zip": "python scripts/build-release.py"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.26.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "jose": "6.2.3",
     "mcp-handler": "1.1.0",
     "next": "^16.0.0",
